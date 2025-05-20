@@ -1,0 +1,57 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install buildozer dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y python3-pip git zip unzip openjdk-17-jdk python3-setuptools \
+            python3-dev build-essential libssl-dev libffi-dev libsqlite3-dev zlib1g-dev \
+            libncurses5-dev libncursesw5-dev libreadline-dev libtk8.6 libgdbm-dev \
+            libdb5.3-dev libbz2-dev libexpat1-dev liblzma-dev
+          pip install --upgrade cython virtualenv buildozer
+
+      - name: Install AIDL (Android build-tools)
+        run: |
+          yes | sudo ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --install "build-tools;34.0.0"
+
+      - name: Show working directory and files (debug)
+        run: |
+          pwd
+          ls -l
+
+      - name: Ensure buildozer.spec exists
+        run: |
+          if [ ! -f buildozer.spec ]; then echo "No se encontró buildozer.spec. Abortando."; exit 1; fi
+
+      - name: Build with Buildozer
+        run: |
+          buildozer android debug || (echo "Build failed"; exit 1)
+
+      - name: List APKs (debug)
+        run: |
+          echo "Contenido del directorio bin/:"
+          ls -l bin/ || echo "Directorio bin/ no encontrado"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-output
+          path: bin/*.apk
